@@ -39,17 +39,17 @@ public class MainActivity extends Activity {
         return BitmapFactory.decodeResource(getResources(), R.drawable.cat);
     }
 
-    Buffer wrap(float[] buffer) {
-        ByteBuffer bb = ByteBuffer.allocateDirect(buffer.length * 4);
-        bb.order(ByteOrder.nativeOrder());
-        FloatBuffer fb = bb.asFloatBuffer();
-        fb.put(buffer);
-        fb.position(0);
-        return fb;
-    }
-
     private GLSurfaceView.Renderer rendererGL11 = new Renderer() {
         int asyncLoadedTextureId = 0;
+
+        Buffer wrap(float[] buffer) {
+            ByteBuffer bb = ByteBuffer.allocateDirect(buffer.length * 4);
+            bb.order(ByteOrder.nativeOrder());
+            FloatBuffer fb = bb.asFloatBuffer();
+            fb.put(buffer);
+            fb.position(0);
+            return fb;
+        }
 
         @Override
         public void onSurfaceCreated(final GL10 gl, EGLConfig config) {

@@ -75,19 +75,23 @@ public class MultiContextGLSurfaceView extends GLSurfaceView {
         Thread thread = (new Thread() {
             @Override
             public void run() {
-                EGLContext context = newSlaveContext();
-                EGLSurface surface = newDummySurface();
+                // initialize EGL async device.
+                final EGLDisplay display = mEGL.eglGetDisplay(EGL_DEFAULT_DISPLAY);
+                mEGL.eglInitialize(display, new int[2]);
+                final EGLContext context = newSlaveContext();
+                final EGLSurface surface = newDummySurface();
 
                 try {
-                    mEGL.eglMakeCurrent(mEGLDisplay, surface, surface, context);
+                    mEGL.eglMakeCurrent(display, surface, surface, context);
 
                     // call event
                     event.run();
                 } finally {
-                    mEGL.eglMakeCurrent(mEGLDisplay, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
+                    mEGL.eglMakeCurrent(display, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
 
                     destroySlaveContext(context);
                     destroyDummySurface(surface);
+                    mEGL.eglTerminate(display);
                 }
             }
         });

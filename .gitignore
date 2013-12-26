@@ -1,4 +1,4 @@
-*/bin/**
+bin/**
 */gen/**
 */private/**
 apk-build/**
@@ -8,3 +8,4 @@ local.properties
 *.o
 *.o.d
 debugjar
+*.class

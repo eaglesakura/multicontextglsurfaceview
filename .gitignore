@@ -1,0 +1,10 @@
+*/bin/**
+*/gen/**
+*/private/**
+apk-build/**
+.DS_Store
+local.properties
+*/obj/**
+*.o
+*.o.d
+debugjar

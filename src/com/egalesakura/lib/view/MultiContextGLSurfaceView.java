@@ -9,6 +9,7 @@ import javax.microedition.khronos.egl.EGLDisplay;
 import javax.microedition.khronos.egl.EGLSurface;
 
 import android.content.Context;
+import android.opengl.GLES10;
 import android.opengl.GLSurfaceView;
 import android.util.AttributeSet;
 import android.util.Log;
@@ -88,6 +89,7 @@ public class MultiContextGLSurfaceView extends GLSurfaceView {
                     // call event
                     event.run();
                 } finally {
+                    GLES10.glFinish();
                     mEGL.eglMakeCurrent(display, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
 
                     destroySlaveContext(context);

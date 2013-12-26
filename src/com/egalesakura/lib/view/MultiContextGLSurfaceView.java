@@ -11,6 +11,7 @@ import javax.microedition.khronos.egl.EGLSurface;
 import android.content.Context;
 import android.opengl.GLSurfaceView;
 import android.util.AttributeSet;
+import android.util.Log;
 
 public class MultiContextGLSurfaceView extends GLSurfaceView {
 
@@ -151,6 +152,8 @@ public class MultiContextGLSurfaceView extends GLSurfaceView {
             if (mEGLContextRef == 0) {
                 // マスターContextが不要になった
                 mEGL.eglDestroyContext(mEGLDisplay, mMasterContext);
+                mMasterContext = null;
+                Log.d("MCGLSV", "Destroy Master Context");
             }
         }
     }

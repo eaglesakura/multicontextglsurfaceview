@@ -78,12 +78,7 @@ public class MultiContextGLSurfaceView extends GLSurfaceView {
             @Override
             public void run() {
                 // initialize EGL async device.
-                final EGLDisplay display;
-                if (mEGLDisplay != null) {
-                    display = mEGLDisplay;
-                } else {
-                    display = mEGL.eglGetDisplay(EGL_DEFAULT_DISPLAY);
-                }
+                final EGLDisplay display = mEGLDisplay;
                 final EGLContext context = newSlaveContext();
                 final EGLSurface surface = newDummySurface();
 

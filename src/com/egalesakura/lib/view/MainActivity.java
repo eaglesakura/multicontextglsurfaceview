@@ -91,7 +91,7 @@ public class MainActivity extends Activity {
 
                     try {
                         // test sleep 
-                        Thread.sleep(5000);
+                        //                        Thread.sleep(5000);
                     } catch (Exception e) {
 
                     }
@@ -103,8 +103,6 @@ public class MainActivity extends Activity {
                     gl.glEnable(GL10.GL_TEXTURE_2D);
                     gl.glBindTexture(GL10.GL_TEXTURE_2D, texId);
                     GLUtils.texImage2D(GL10.GL_TEXTURE_2D, 0, loadImage(), 0);
-                    gl.glTexParameterf(GL10.GL_TEXTURE_2D, GL10.GL_TEXTURE_MIN_FILTER, GL10.GL_NEAREST);
-                    gl.glTexParameterf(GL10.GL_TEXTURE_2D, GL10.GL_TEXTURE_MAG_FILTER, GL10.GL_NEAREST);
 
                     asyncLoadedTextureId = texId;
 
@@ -148,13 +146,18 @@ public class MainActivity extends Activity {
 
         @Override
         public void onDrawFrame(GL10 gl) {
-            gl.glClearColor(0, 1, (float) Math.random(), 1);
-            gl.glClear(GL10.GL_COLOR_BUFFER_BIT);
 
             if (asyncLoadedTextureId != 0) {
                 // async load completed
+
+                gl.glClearColor(0, 1, 1, 1);
+                gl.glClear(GL10.GL_COLOR_BUFFER_BIT);
+
                 gl.glEnable(GL10.GL_TEXTURE_2D);
+                gl.glActiveTexture(GL10.GL_TEXTURE0);
                 gl.glBindTexture(GL10.GL_TEXTURE_2D, asyncLoadedTextureId);
+                gl.glTexParameterf(GL10.GL_TEXTURE_2D, GL10.GL_TEXTURE_MIN_FILTER, GL10.GL_NEAREST);
+                gl.glTexParameterf(GL10.GL_TEXTURE_2D, GL10.GL_TEXTURE_MAG_FILTER, GL10.GL_NEAREST);
 
                 float uv[] = {
                         0.0f, 0.0f, // !< 左上
@@ -165,7 +168,9 @@ public class MainActivity extends Activity {
 
                 gl.glEnableClientState(GL10.GL_TEXTURE_COORD_ARRAY);
                 gl.glTexCoordPointer(2, GL10.GL_FLOAT, 0, wrap(uv));
-
+            } else {
+                gl.glClearColor(0, 1, (float) Math.random(), 1);
+                gl.glClear(GL10.GL_COLOR_BUFFER_BIT);
             }
             drawQuad(gl, 0, 0, 512, 512);
         }

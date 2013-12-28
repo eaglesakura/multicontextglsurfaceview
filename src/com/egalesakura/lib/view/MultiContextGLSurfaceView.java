@@ -78,8 +78,12 @@ public class MultiContextGLSurfaceView extends GLSurfaceView {
             @Override
             public void run() {
                 // initialize EGL async device.
-                final EGLDisplay display = mEGL.eglGetDisplay(EGL_DEFAULT_DISPLAY);
-                mEGL.eglInitialize(display, new int[2]);
+                final EGLDisplay display;
+                if (mEGLDisplay != null) {
+                    display = mEGLDisplay;
+                } else {
+                    display = mEGL.eglGetDisplay(EGL_DEFAULT_DISPLAY);
+                }
                 final EGLContext context = newSlaveContext();
                 final EGLSurface surface = newDummySurface();
 
@@ -94,14 +98,12 @@ public class MultiContextGLSurfaceView extends GLSurfaceView {
 
                     destroySlaveContext(context);
                     destroyDummySurface(surface);
-                    mEGL.eglTerminate(display);
                 }
             }
         });
 
         thread.setName("GL-Background");
         thread.start();
-
     }
 
     /**
@@ -131,6 +133,7 @@ public class MultiContextGLSurfaceView extends GLSurfaceView {
                 this.mEGLDisplay = display;
                 this.mEGLConfig = config;
             }
+
             return mMasterContext;
         }
     }
@@ -206,10 +209,14 @@ public class MultiContextGLSurfaceView extends GLSurfaceView {
         public void destroyContext(EGL10 egl, EGLDisplay display, EGLContext context) {
             egl.eglDestroyContext(display, context);
             releaseEGL();
+
+            egl.eglTerminate(display);
         }
 
         @Override
         public EGLContext createContext(EGL10 egl, EGLDisplay display, EGLConfig eglConfig) {
+            egl.eglInitialize(display, new int[2]);
+
             EGLContext master = getMasterContext(egl, display, eglConfig);
             EGLContext result = egl.eglCreateContext(display, eglConfig, master, getContextAttributes());
             if (result == EGL_NO_CONTEXT) {

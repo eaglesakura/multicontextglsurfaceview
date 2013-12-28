@@ -6,6 +6,7 @@ import java.nio.ByteOrder;
 import java.nio.FloatBuffer;
 
 import javax.microedition.khronos.egl.EGLConfig;
+import javax.microedition.khronos.egl.EGLContext;
 import javax.microedition.khronos.opengles.GL10;
 
 import android.app.Activity;
@@ -21,6 +22,8 @@ public class MainActivity extends Activity {
 
     MultiContextGLSurfaceView view;
 
+    EGLContext slaveContext = null;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -33,6 +36,25 @@ public class MainActivity extends Activity {
         }
 
         setContentView(view);
+
+    }
+
+    @Override
+    protected void onDestroy() {
+        view.destroySlaveContext(slaveContext);
+        super.onDestroy();
+    }
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+        view.onPause();
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        view.onResume();
     }
 
     Bitmap loadImage() {
@@ -53,6 +75,14 @@ public class MainActivity extends Activity {
 
         @Override
         public void onSurfaceCreated(final GL10 gl, EGLConfig config) {
+
+            if (asyncLoadedTextureId != 0) {
+                return;
+            }
+
+            if (slaveContext == null) {
+                slaveContext = view.newSlaveContext();
+            }
 
             Runnable loadEvent = new Runnable() {
                 @Override

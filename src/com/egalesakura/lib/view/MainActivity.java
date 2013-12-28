@@ -53,7 +53,8 @@ public class MainActivity extends Activity {
 
         @Override
         public void onSurfaceCreated(final GL10 gl, EGLConfig config) {
-            view.requestAsyncGLEvent(new Runnable() {
+
+            Runnable loadEvent = new Runnable() {
                 @Override
                 public void run() {
                     // async GL Thread
@@ -79,7 +80,10 @@ public class MainActivity extends Activity {
 
                     Log.i("Async", "Texture Loaded :: " + texId);
                 }
-            });
+            };
+
+            //            view.queueEvent(loadEvent); // Freeze GL Thread...
+            view.requestAsyncGLEvent(loadEvent); // Not Freeze GL Thread !!
         }
 
         private int screenWidth;

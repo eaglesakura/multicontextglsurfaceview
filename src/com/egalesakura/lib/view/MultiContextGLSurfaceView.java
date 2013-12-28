@@ -212,6 +212,9 @@ public class MultiContextGLSurfaceView extends GLSurfaceView {
         public EGLContext createContext(EGL10 egl, EGLDisplay display, EGLConfig eglConfig) {
             EGLContext master = getMasterContext(egl, display, eglConfig);
             EGLContext result = egl.eglCreateContext(display, eglConfig, master, getContextAttributes());
+            if (result == EGL_NO_CONTEXT) {
+                throw new IllegalStateException("Not support shared_context");
+            }
             retainEGL();
             return result;
         }

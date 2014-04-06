@@ -14,15 +14,14 @@ import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.opengl.GLSurfaceView;
 import android.opengl.GLSurfaceView.Renderer;
-import android.opengl.GLUtils;
 import android.os.Bundle;
 import android.util.Log;
+
+import com.egalesakura.lib.view.MultiContextGLSurfaceView.GLRunnable;
 
 public class MainActivity extends Activity {
 
     MultiContextGLSurfaceView view;
-
-    EGLContext slaveContext = null;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -41,7 +40,6 @@ public class MainActivity extends Activity {
 
     @Override
     protected void onDestroy() {
-        view.destroySlaveContext(slaveContext);
         super.onDestroy();
     }
 
@@ -57,12 +55,13 @@ public class MainActivity extends Activity {
         view.onResume();
     }
 
-    Bitmap loadImage() {
-        return BitmapFactory.decodeResource(getResources(), R.drawable.cat);
+    Bitmap loadImage(int drawable) {
+        return BitmapFactory.decodeResource(getResources(), drawable);
     }
 
     private GLSurfaceView.Renderer rendererGL11 = new Renderer() {
-        int asyncLoadedTextureId = 0;
+        int asyncLoadedTextureId0 = 0;
+        int asyncLoadedTextureId1 = 0;
 
         Buffer wrap(float[] buffer) {
             ByteBuffer bb = ByteBuffer.allocateDirect(buffer.length * 4);
@@ -73,45 +72,44 @@ public class MainActivity extends Activity {
             return fb;
         }
 
+        Object contextLock = new Object();
+
+        void texImage2D(GL10 gl, Bitmap image) {
+            final int image_width = image.getWidth();
+            final int image_height = image.getHeight();
+
+            // ピクセル情報の格納先
+            ByteBuffer pixelBuffer = ByteBuffer.allocateDirect(image_width * image_height * 4);
+            Log.d("RawPixelImage", String.format("image size(%d x %d)", image_width, image_height));
+
+            final int[] temp = new int[image_width];
+            final byte[] pixel_temp = new byte[4];
+            for (int i = 0; i < image_height; ++i) {
+                // 1ラインずつ読み込む
+                image.getPixels(temp, 0, image_width, 0, i, image_width, 1);
+                // 結果をByteArrayへ書き込む
+                for (int k = 0; k < image_width; ++k) {
+                    final int pixel = temp[k];
+
+                    pixel_temp[0] = (byte) ((pixel >> 16) & 0xFF);
+                    pixel_temp[1] = (byte) ((pixel >> 8) & 0xFF);
+                    pixel_temp[2] = (byte) ((pixel) & 0xFF);
+                    pixel_temp[3] = (byte) ((pixel >> 24) & 0xFF);
+
+                    pixelBuffer.put(pixel_temp);
+                }
+            }
+
+            // 書き込み位置をリセットする
+            pixelBuffer.position(0);
+
+            gl.glTexImage2D(GL10.GL_TEXTURE_2D, 0, GL10.GL_RGBA, image.getWidth(), image.getHeight(), 0, GL10.GL_RGBA,
+                    GL10.GL_UNSIGNED_BYTE, pixelBuffer);
+        }
+
         @Override
         public void onSurfaceCreated(final GL10 gl, EGLConfig config) {
 
-            if (asyncLoadedTextureId != 0) {
-                return;
-            }
-
-            if (slaveContext == null) {
-                slaveContext = view.newSlaveContext();
-            }
-
-            Runnable loadEvent = new Runnable() {
-                @Override
-                public void run() {
-                    // async GL Thread
-
-                    try {
-                        // test sleep 
-                        Thread.sleep(5000);
-                    } catch (Exception e) {
-
-                    }
-
-                    int[] tex = new int[1];
-                    gl.glGenTextures(1, tex, 0);
-
-                    final int texId = tex[0];
-                    gl.glEnable(GL10.GL_TEXTURE_2D);
-                    gl.glBindTexture(GL10.GL_TEXTURE_2D, texId);
-                    GLUtils.texImage2D(GL10.GL_TEXTURE_2D, 0, loadImage(), 0);
-
-                    asyncLoadedTextureId = texId;
-
-                    Log.i("Async", "Texture Loaded :: " + texId);
-                }
-            };
-
-            //            view.queueEvent(loadEvent); // Freeze GL Thread...
-            view.requestAsyncGLEvent(loadEvent); // Not Freeze GL Thread !!
         }
 
         private int screenWidth;
@@ -122,6 +120,69 @@ public class MainActivity extends Activity {
             this.screenWidth = width;
             this.screenHeight = height;
             gl.glViewport(0, 0, width, height);
+
+            if (asyncLoadedTextureId0 != 0) {
+                return;
+            }
+
+            {
+                GLRunnable loadEvent = new GLRunnable() {
+                    @Override
+                    public void run(EGLContext slave, GL10 gl) {
+                        // async GL Thread
+                        int[] tex = new int[1];
+                        gl.glGenTextures(1, tex, 0);
+
+                        final int texId = tex[0];
+                        gl.glBindTexture(GL10.GL_TEXTURE_2D, texId);
+                        texImage2D(gl, loadImage(R.drawable.cat));
+                        gl.glFinish();
+
+                        asyncLoadedTextureId1 = texId;
+
+                        Log.i("Async", "Texture Loaded :: " + texId);
+
+                        try {
+                            Thread.sleep(1000);
+                        } catch (Exception e) {
+
+                        }
+                    }
+                };
+
+                //            view.queueEvent(loadEvent); // Freeze GL Thread...
+                view.requestAsyncGLEvent(loadEvent); // Not Freeze GL Thread !!
+            }
+
+            {
+                GLRunnable loadEvent = new GLRunnable() {
+                    @Override
+                    public void run(EGLContext slave, GL10 gl) {
+                        // async GL Thread
+                        int[] tex = new int[1];
+                        gl.glGenTextures(1, tex, 0);
+
+                        final int texId = tex[0];
+                        gl.glBindTexture(GL10.GL_TEXTURE_2D, texId);
+                        texImage2D(gl, loadImage(R.drawable.cow));
+                        gl.glFinish();
+
+                        asyncLoadedTextureId0 = texId;
+
+                        Log.i("Async", "Texture Loaded :: " + texId);
+
+                        try {
+                            Thread.sleep(1000);
+                        } catch (Exception e) {
+
+                        }
+                    }
+                };
+
+                //            view.queueEvent(loadEvent); // Freeze GL Thread...
+                view.requestAsyncGLEvent(loadEvent); // Not Freeze GL Thread !!
+            }
+
         }
 
         private void drawQuad(GL10 gl10, int x, int y, int w, int h) {
@@ -147,18 +208,21 @@ public class MainActivity extends Activity {
         @Override
         public void onDrawFrame(GL10 gl) {
 
-            if (asyncLoadedTextureId != 0) {
-                // async load completed
-
-                gl.glClearColor(0, 1, 1, 1);
+            if (asyncLoadedTextureId0 == 0 && asyncLoadedTextureId1 == 0) {
+                gl.glClearColor(0, 1, (float) Math.random(), 1);
                 gl.glClear(GL10.GL_COLOR_BUFFER_BIT);
+                return;
+            }
 
-                gl.glEnable(GL10.GL_TEXTURE_2D);
-                gl.glActiveTexture(GL10.GL_TEXTURE0);
-                gl.glBindTexture(GL10.GL_TEXTURE_2D, asyncLoadedTextureId);
-                gl.glTexParameterf(GL10.GL_TEXTURE_2D, GL10.GL_TEXTURE_MIN_FILTER, GL10.GL_NEAREST);
-                gl.glTexParameterf(GL10.GL_TEXTURE_2D, GL10.GL_TEXTURE_MAG_FILTER, GL10.GL_NEAREST);
+            gl.glClearColor(0, 1, 1, 1);
+            gl.glClear(GL10.GL_COLOR_BUFFER_BIT);
+            gl.glEnable(GL10.GL_TEXTURE_2D);
+            gl.glActiveTexture(GL10.GL_TEXTURE0);
+            gl.glTexParameterf(GL10.GL_TEXTURE_2D, GL10.GL_TEXTURE_MIN_FILTER, GL10.GL_NEAREST);
+            gl.glTexParameterf(GL10.GL_TEXTURE_2D, GL10.GL_TEXTURE_MAG_FILTER, GL10.GL_NEAREST);
 
+            {
+                // UV座標設定
                 float uv[] = {
                         0.0f, 0.0f, // !< 左上
                         0.0f, 1.0f, // !< 左下
@@ -168,11 +232,20 @@ public class MainActivity extends Activity {
 
                 gl.glEnableClientState(GL10.GL_TEXTURE_COORD_ARRAY);
                 gl.glTexCoordPointer(2, GL10.GL_FLOAT, 0, wrap(uv));
-            } else {
-                gl.glClearColor(0, 1, (float) Math.random(), 1);
-                gl.glClear(GL10.GL_COLOR_BUFFER_BIT);
             }
-            drawQuad(gl, 0, 0, 512, 512);
+
+            if (asyncLoadedTextureId0 != 0) {
+                // async load completed cat
+                gl.glBindTexture(GL10.GL_TEXTURE_2D, asyncLoadedTextureId0);
+                drawQuad(gl, 0, 0, 256, 256);
+            }
+
+            if (asyncLoadedTextureId1 != 0) {
+                // async load completed cow
+                gl.glBindTexture(GL10.GL_TEXTURE_2D, asyncLoadedTextureId1);
+
+                drawQuad(gl, 256, 0, 256, 256);
+            }
         }
     };
 }

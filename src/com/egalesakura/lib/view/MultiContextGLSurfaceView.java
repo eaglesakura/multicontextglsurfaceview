@@ -7,9 +7,9 @@ import javax.microedition.khronos.egl.EGLConfig;
 import javax.microedition.khronos.egl.EGLContext;
 import javax.microedition.khronos.egl.EGLDisplay;
 import javax.microedition.khronos.egl.EGLSurface;
+import javax.microedition.khronos.opengles.GL10;
 
 import android.content.Context;
-import android.opengl.GLES10;
 import android.opengl.GLSurfaceView;
 import android.util.AttributeSet;
 import android.util.Log;
@@ -73,22 +73,22 @@ public class MultiContextGLSurfaceView extends GLSurfaceView {
      * Textureの読み込み等を想定
      * @param event
      */
-    public void requestAsyncGLEvent(final Runnable event) {
+    public void requestAsyncGLEvent(final GLRunnable event) {
         Thread thread = (new Thread() {
             @Override
             public void run() {
                 // initialize EGL async device.
                 final EGLDisplay display = mEGLDisplay;
                 final EGLContext context = newSlaveContext();
+                Log.d("EGL", "context id :: " + context);
                 final EGLSurface surface = newDummySurface();
 
                 try {
                     mEGL.eglMakeCurrent(display, surface, surface, context);
 
                     // call event
-                    event.run();
+                    event.run(context, (GL10) context.getGL());
                 } finally {
-                    GLES10.glFinish();
                     mEGL.eglMakeCurrent(display, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
 
                     destroySlaveContext(context);
@@ -107,10 +107,12 @@ public class MultiContextGLSurfaceView extends GLSurfaceView {
      */
     private int[] getContextAttributes() {
         if (mEglClientVersion == 1) {
-            return null;
+            return new int[] {
+                    0x3098 /* EGL_CONTEXT_CLIENT_VERSION */, 1 /* EGL_OPENGL_ES_BIT */, EGL_NONE
+            };
         } else {
             return new int[] {
-                    0x3098 /* EGL_CONTEXT_CLIENT_VERSION */, mEglClientVersion, EGL_NONE
+                    0x3098 /* EGL_CONTEXT_CLIENT_VERSION */, 4 /* EGL_OPENGL_ES2_BIT */, EGL_NONE
             };
         }
     }
@@ -184,7 +186,17 @@ public class MultiContextGLSurfaceView extends GLSurfaceView {
      * @return
      */
     public EGLContext newSlaveContext() {
-        return mEGLContextFactory.createContext(mEGL, mEGLDisplay, mEGLConfig);
+        synchronized (mEGLContextLock) {
+            mEGL.eglInitialize(mEGLDisplay, new int[2]);
+
+            EGLContext master = getMasterContext(mEGL, mEGLDisplay, mEGLConfig);
+            EGLContext result = mEGL.eglCreateContext(mEGLDisplay, mEGLConfig, master, getContextAttributes());
+            if (result == EGL_NO_CONTEXT) {
+                throw new IllegalStateException("Not support shared_context");
+            }
+            retainEGL();
+            return result;
+        }
     }
 
     /**
@@ -192,7 +204,11 @@ public class MultiContextGLSurfaceView extends GLSurfaceView {
      * @param context
      */
     public void destroySlaveContext(EGLContext context) {
-        mEGLContextFactory.destroyContext(mEGL, mEGLDisplay, context);
+        synchronized (mEGLContextLock) {
+            mEGL.eglDestroyContext(mEGLDisplay, context);
+            releaseEGL();
+            //            mEGL.eglTerminate(mEGLDisplay);
+        }
     }
 
     /**
@@ -202,24 +218,21 @@ public class MultiContextGLSurfaceView extends GLSurfaceView {
 
         @Override
         public void destroyContext(EGL10 egl, EGLDisplay display, EGLContext context) {
-            egl.eglDestroyContext(display, context);
+            // EGL参照数を一つ下げる
             releaseEGL();
-
-            egl.eglTerminate(display);
         }
 
         @Override
-        public EGLContext createContext(EGL10 egl, EGLDisplay display, EGLConfig eglConfig) {
-            egl.eglInitialize(display, new int[2]);
-
-            EGLContext master = getMasterContext(egl, display, eglConfig);
-            EGLContext result = egl.eglCreateContext(display, eglConfig, master, getContextAttributes());
-            if (result == EGL_NO_CONTEXT) {
-                throw new IllegalStateException("Not support shared_context");
-            }
+        public EGLContext createContext(EGL10 egl, EGLDisplay display, EGLConfig config) {
+            EGLContext context = getMasterContext(egl, display, config);
             retainEGL();
-            return result;
+            // マスターContextをそのまま帰す
+            return context;
         }
     };
+
+    public interface GLRunnable {
+        void run(EGLContext slave, GL10 gl);
+    }
 
 }

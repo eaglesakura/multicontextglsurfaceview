@@ -107,6 +107,14 @@ public class MainActivity extends Activity {
                     GL10.GL_UNSIGNED_BYTE, pixelBuffer);
         }
 
+        void sleep(int ms) {
+            try {
+                Thread.sleep(1000);
+            } catch (Exception e) {
+
+            }
+        }
+
         @Override
         public void onSurfaceCreated(final GL10 gl, EGLConfig config) {
 
@@ -129,24 +137,23 @@ public class MainActivity extends Activity {
                 GLRunnable loadEvent = new GLRunnable() {
                     @Override
                     public void run(EGLContext slave, GL10 gl) {
+
+                        sleep(1000);
+
                         // async GL Thread
                         int[] tex = new int[1];
                         gl.glGenTextures(1, tex, 0);
 
                         final int texId = tex[0];
                         gl.glBindTexture(GL10.GL_TEXTURE_2D, texId);
+                        gl.glTexParameterf(GL10.GL_TEXTURE_2D, GL10.GL_TEXTURE_MIN_FILTER, GL10.GL_NEAREST);
+                        gl.glTexParameterf(GL10.GL_TEXTURE_2D, GL10.GL_TEXTURE_MAG_FILTER, GL10.GL_NEAREST);
                         texImage2D(gl, loadImage(R.drawable.cat));
                         gl.glFinish();
 
                         asyncLoadedTextureId1 = texId;
 
                         Log.i("Async", "Texture Loaded :: " + texId);
-
-                        try {
-                            Thread.sleep(1000);
-                        } catch (Exception e) {
-
-                        }
                     }
                 };
 
@@ -158,12 +165,16 @@ public class MainActivity extends Activity {
                 GLRunnable loadEvent = new GLRunnable() {
                     @Override
                     public void run(EGLContext slave, GL10 gl) {
+                        sleep(500);
+
                         // async GL Thread
                         int[] tex = new int[1];
                         gl.glGenTextures(1, tex, 0);
 
                         final int texId = tex[0];
                         gl.glBindTexture(GL10.GL_TEXTURE_2D, texId);
+                        gl.glTexParameterf(GL10.GL_TEXTURE_2D, GL10.GL_TEXTURE_MIN_FILTER, GL10.GL_NEAREST);
+                        gl.glTexParameterf(GL10.GL_TEXTURE_2D, GL10.GL_TEXTURE_MAG_FILTER, GL10.GL_NEAREST);
                         texImage2D(gl, loadImage(R.drawable.cow));
                         gl.glFinish();
 
@@ -171,11 +182,6 @@ public class MainActivity extends Activity {
 
                         Log.i("Async", "Texture Loaded :: " + texId);
 
-                        try {
-                            Thread.sleep(1000);
-                        } catch (Exception e) {
-
-                        }
                     }
                 };
 
@@ -217,13 +223,11 @@ public class MainActivity extends Activity {
             gl.glClearColor(0, 1, 1, 1);
             gl.glClear(GL10.GL_COLOR_BUFFER_BIT);
             gl.glEnable(GL10.GL_TEXTURE_2D);
-            gl.glActiveTexture(GL10.GL_TEXTURE0);
-            gl.glTexParameterf(GL10.GL_TEXTURE_2D, GL10.GL_TEXTURE_MIN_FILTER, GL10.GL_NEAREST);
-            gl.glTexParameterf(GL10.GL_TEXTURE_2D, GL10.GL_TEXTURE_MAG_FILTER, GL10.GL_NEAREST);
 
+            final Buffer uvBuffer;
             {
                 // UV座標設定
-                float uv[] = {
+                final float uv[] = {
                         0.0f, 0.0f, // !< 左上
                         0.0f, 1.0f, // !< 左下
                         1.0f, 0.0f, // !< 右上
@@ -231,7 +235,8 @@ public class MainActivity extends Activity {
                 };
 
                 gl.glEnableClientState(GL10.GL_TEXTURE_COORD_ARRAY);
-                gl.glTexCoordPointer(2, GL10.GL_FLOAT, 0, wrap(uv));
+                uvBuffer = wrap(uv);
+                gl.glTexCoordPointer(2, GL10.GL_FLOAT, 0, uvBuffer);
             }
 
             if (asyncLoadedTextureId0 != 0) {
@@ -243,7 +248,6 @@ public class MainActivity extends Activity {
             if (asyncLoadedTextureId1 != 0) {
                 // async load completed cow
                 gl.glBindTexture(GL10.GL_TEXTURE_2D, asyncLoadedTextureId1);
-
                 drawQuad(gl, 256, 0, 256, 256);
             }
         }

@@ -73,7 +73,8 @@ public class MultiContextGLSurfaceView extends GLSurfaceView {
      * Textureの読み込み等を想定
      * @param event
      */
-    public void requestAsyncGLEvent(final GLRunnable event) {
+    public synchronized void requestAsyncGLEvent(final GLRunnable event) {
+
         Thread thread = (new Thread() {
             @Override
             public void run() {
@@ -85,13 +86,14 @@ public class MultiContextGLSurfaceView extends GLSurfaceView {
 
                 try {
                     mEGL.eglMakeCurrent(display, surface, surface, context);
+                    mEGL.eglWaitGL();
 
                     // call event
                     event.run(context, (GL10) context.getGL());
                 } finally {
                     mEGL.eglMakeCurrent(display, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
 
-                    destroySlaveContext(context);
+                    //                    destroySlaveContext(context);
                     destroyDummySurface(surface);
                 }
             }
@@ -207,7 +209,7 @@ public class MultiContextGLSurfaceView extends GLSurfaceView {
         synchronized (mEGLContextLock) {
             mEGL.eglDestroyContext(mEGLDisplay, context);
             releaseEGL();
-            //            mEGL.eglTerminate(mEGLDisplay);
+            mEGL.eglTerminate(mEGLDisplay);
         }
     }
 
@@ -226,6 +228,7 @@ public class MultiContextGLSurfaceView extends GLSurfaceView {
         public EGLContext createContext(EGL10 egl, EGLDisplay display, EGLConfig config) {
             EGLContext context = getMasterContext(egl, display, config);
             retainEGL();
+
             // マスターContextをそのまま帰す
             return context;
         }
